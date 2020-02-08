@@ -1,4 +1,3 @@
-import pymongo
 import requests
 import time
 
@@ -34,12 +33,6 @@ def getUserCourses():
 		print("No new data")
 	time.sleep(5)
 	getUserCourses()
-
-
-
-def createDatabase():
-	client = pymongo.MongoClient("mongodb://localhost:27017/")
-	db = client["courses"]
 
 
 
