@@ -72,11 +72,11 @@ def getModulesForCourse(courseid):
 					# new module
 					# send notification or whatever
 
-					print("Found New Module ", str(current_module_id), " in course ", str(courseid))
+					print "Found New Module ", str(current_module_id), " in course ", str(courseid)
 					enterModuleInDB(current_module_id, courseid)
 
 				else:
-					print("Already exists Module ", str(current_module_id), " in course ", str(courseid))
+					print "Already exists Module ", str(current_module_id), " in course ", str(courseid)
 
 def main():
 
