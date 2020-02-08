@@ -37,6 +37,8 @@ def getUserCourses():
 		enterCourseInDB(course["id"])
 		# get modules of this course
 		getModulesForCourse(course["id"])
+	c.close()
+	conn.close()
 
 
 
@@ -77,6 +79,9 @@ def getModulesForCourse(courseid):
 
 				else:
 					print "Already exists Module ", str(current_module_id), " in course ", str(courseid)
+
+
+
 
 def main():
 
