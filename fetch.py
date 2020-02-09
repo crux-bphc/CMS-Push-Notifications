@@ -1,6 +1,7 @@
 import requests
 import time
 import sqlite3
+from apns import APNs, Frame, Payload
 
 # urls
 base_url = "https://td.bits-hyderabad.ac.in/moodle/webservice/rest/server.php?"
@@ -11,17 +12,30 @@ get_course_modules = base_url + "wsfunction=core_course_get_contents&moodlewsres
 # other variables
 token = ""
 user_id = 0
-persisted_data = ""
+device_token = ""
+cert_file = ""
+key_file = ""
+repeat_after = 30
 
 # database variables
 conn = sqlite3.connect('coursedata.db')
 c = conn.cursor()
 
+def getDeviceDetails():
+	global device_token
+	global cert_file
+	global key_file
+	global repeat_after
+	device_token = raw_input("Enter your device token from Xcode: ")
+	cert_file = raw_input("Enter the name of the certificate file(must contain .pem): ")
+	key_file = raw_input("Enter the name of the key file(must contain .pem): ")
+	repeat_after = raw_input("How often to repeat fetch(in seconds): ")
+
 
 def loginUserAndGetToken():
 	global token
 	global user_id
-	token = raw_input("Enter a token: ")
+	token = raw_input("Enter your moodle token: ")
 	url = login_user + "&wstoken=" + token
 	data = requests.get(url = url).json()
 	user_id = data["userid"]
@@ -30,15 +44,18 @@ def loginUserAndGetToken():
 def getUserCourses():
 	global token
 	global user_id
-	global persisted_data
+	print "Downloading modules..."
 	url = get_user_courses + "&wstoken=" + token + "&userid=" + str(user_id)
 	courses = requests.get(url = url).json()
 	for course in courses:
 		enterCourseInDB(course["id"])
 		# get modules of this course
 		getModulesForCourse(course["id"])
-	c.close()
-	conn.close()
+	# c.close()
+	# conn.close()
+	print "Finished executing, repeating after " + str(repeat_after) + " seconds..."
+	time.sleep(float(repeat_after))
+	getUserCourses()
 
 
 
@@ -73,18 +90,22 @@ def getModulesForCourse(courseid):
 				if len(c.fetchall()) == 0:
 					# new module
 					# send notification or whatever
-
-					print "Found New Module ", str(current_module_id), " in course ", str(courseid)
+					sendNotification(current_module_id, courseid)
+					print "Found New Module " + str(current_module_id) + " in course " + str(courseid)
 					enterModuleInDB(current_module_id, courseid)
 
-				else:
-					print "Already exists Module ", str(current_module_id), " in course ", str(courseid)
 
 
+def sendNotification(moduleid, courseid):
+	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
+	token_hex = device_token
+	message = "New module " + str(moduleid) + " in course " + str(courseid)
+	payload = Payload(alert=message, sound="default", badge=1)
+	apns.gateway_server.send_notification(token_hex, payload)
 
 
 def main():
-
+	getDeviceDetails()
 	loginUserAndGetToken()
 	getUserCourses()
 
