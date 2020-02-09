@@ -8,7 +8,7 @@ This python script get user courses and stores their modules in an sqlite databa
 
 3. Get your device token from the Xcode console when you run the Push Notifications branch of the [CMS iOS](https://github.com/crux-bphc/CMS-iOS/tree/PushNotifications) app on your device.
 
-4. Download the certificate file from the Apple Developer website(Certificates, Identifiers & Profiles -> Identifiers pane -> com.crux-bphc.CMS-iOS -> Push Notifications.
+4. Download the certificate file from the Apple Developer website: Certificates, Identifiers & Profiles -> Identifiers pane -> com.crux-bphc.CMS-iOS -> Push Notifications.
 5. Open this certificate in Keychain Access.
 6. In the Category pane on the left in Keychain access, navigate to certificates and then find the push notifications certificate.
 7. Press the arrow to expand the certificate to show the private key.
