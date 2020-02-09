@@ -13,6 +13,7 @@ This python script get user courses and stores their modules in an sqlite databa
 6. In the Category pane on the left in Keychain access, navigate to certificates and then find the push notifications certificate.
 7. Press the arrow to expand the certificate to show the private key.
 8. Right click and export, one by one both the certificate and private key without any password.
-9. Convert both files to .pem by running `openssl pkcs12 -in inputname.cer -out outputname.pem -nodes`, change inputname to the file name and .cer to .p12 for the key file.
+9. Convert both files to .pem by running `openssl pkcs12 -in inputname.cer -out outputname.pem -nodes`
+Change inputname to the file name and .cer to .p12 for the key file.
 10. Place both these .pem files in the current directory.
 11. Execute 'fetch.py'.
