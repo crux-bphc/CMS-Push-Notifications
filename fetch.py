@@ -90,18 +90,18 @@ def getModulesForCourse(courseid, coursename):
 				if len(c.fetchall()) == 0:
 					# new module
 					# send notification or whatever
-					sendNotification(current_module_id, module["name"], courseid, coursename)
+					sendNotification(module["name"], coursename)
 					print "Found New Module " + module["name"] + " in course " + str(coursename)
 					enterModuleInDB(current_module_id, module["name"], courseid)
 
 
 
-def sendNotification(moduleid, modulename, courseid, coursename):
+def sendNotification(modulename, coursename):
+	global device_token
 	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
-	token_hex = device_token
 	message = "New module " + modulename + " in course " + coursename
 	payload = Payload(alert=message, sound="default", badge=1)
-	apns.gateway_server.send_notification(token_hex, payload)
+	apns.gateway_server.send_notification(device_token, payload)
 
 
 def main():
