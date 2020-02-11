@@ -48,36 +48,36 @@ def getUserCourses():
 	url = get_user_courses + "&wstoken=" + token + "&userid=" + str(user_id)
 	courses = requests.get(url = url).json()
 	for course in courses:
-		enterCourseInDB(course["id"])
+		enterCourseInDB(course["id"], course["fullname"])
 		# get modules of this course
-		getModulesForCourse(course["id"])
+		getModulesForCourse(course["id"], course["fullname"])
 	# c.close()
 	# conn.close()
-	print "Finished executing, repeating after " + str(repeat_after) + " seconds..."
+	print "Finished execution, repeating after " + str(repeat_after) + " seconds..."
 	time.sleep(float(repeat_after))
 	getUserCourses()
 
 
 
-def enterCourseInDB(courseid):
-	c.execute('CREATE TABLE IF NOT EXISTS courses(courseid INT PRIMARY KEY)')
-	c.execute('INSERT OR IGNORE INTO courses VALUES(?)',
-		(courseid,))
+def enterCourseInDB(courseid, coursename):
+	c.execute('CREATE TABLE IF NOT EXISTS courses(courseid INT PRIMARY KEY, coursename TEXT)')
+	c.execute('INSERT OR IGNORE INTO courses VALUES(?,?)',
+		(courseid, coursename,))
 	conn.commit()
 
 
 
-def enterModuleInDB(moduleid, courseid):
-	c.execute('CREATE TABLE IF NOT EXISTS modules(moduleid INT PRIMARY KEY, courseid INT)')
-	c.execute('INSERT OR IGNORE INTO modules VALUES(?, ?)',
-		(moduleid, courseid,))
-	conn.commit()	
+def enterModuleInDB(moduleid, modulename, courseid):
+	c.execute('CREATE TABLE IF NOT EXISTS modules(moduleid INT PRIMARY KEY, modulename TEXT, courseid INT)')
+	c.execute('INSERT OR IGNORE INTO modules VALUES(?,?,?)',
+		(moduleid, modulename, courseid,))
+	conn.commit()
 
 
 
-def getModulesForCourse(courseid):
+def getModulesForCourse(courseid, coursename):
 	global token
-	c.execute('CREATE TABLE IF NOT EXISTS modules(moduleid INT PRIMARY KEY, courseid INT)')
+	c.execute('CREATE TABLE IF NOT EXISTS modules(moduleid INT PRIMARY KEY, modulename TEXT, courseid INT)')
 	url = get_course_modules + "&wstoken=" + token + "&courseid=" + str(courseid)
 	data = requests.get(url = url).json()
 	for section in data:
@@ -90,16 +90,16 @@ def getModulesForCourse(courseid):
 				if len(c.fetchall()) == 0:
 					# new module
 					# send notification or whatever
-					sendNotification(current_module_id, courseid)
-					print "Found New Module " + str(current_module_id) + " in course " + str(courseid)
-					enterModuleInDB(current_module_id, courseid)
+					sendNotification(current_module_id, module["name"], courseid, coursename)
+					print "Found New Module " + module["name"] + " in course " + str(coursename)
+					enterModuleInDB(current_module_id, module["name"], courseid)
 
 
 
-def sendNotification(moduleid, courseid):
+def sendNotification(moduleid, modulename, courseid, coursename):
 	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
 	token_hex = device_token
-	message = "New module " + str(moduleid) + " in course " + str(courseid)
+	message = "New module " + modulename + " in course " + coursename
 	payload = Payload(alert=message, sound="default", badge=1)
 	apns.gateway_server.send_notification(token_hex, payload)
 
@@ -108,11 +108,6 @@ def main():
 	getDeviceDetails()
 	loginUserAndGetToken()
 	getUserCourses()
-
-
-
-
-
 
 
 if __name__== "__main__":
