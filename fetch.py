@@ -2,6 +2,7 @@ import requests
 import time
 import sqlite3
 from apns import APNs, Frame, Payload, PayloadAlert
+from os.path import isfile
 
 # urls
 base_url = "https://td.bits-hyderabad.ac.in/moodle/webservice/rest/server.php?"
@@ -16,31 +17,41 @@ user_id = 0
 device_token = ""
 cert_file = ""
 key_file = ""
-repeat_after = 30
+repeat_after = 0
 
 # database variables
 conn = sqlite3.connect('coursedata.db')
 c = conn.cursor()
+dbEmpty = False
 
-def getDeviceDetails():
+def getInput():
 	global device_token
 	global cert_file
 	global key_file
 	global repeat_after
+	global token
 	device_token = raw_input("Enter your device token from Xcode: ")
 	cert_file = raw_input("Enter the name of the certificate file(must contain .pem): ")
 	key_file = raw_input("Enter the name of the key file(must contain .pem): ")
 	repeat_after = raw_input("How often to repeat fetch(in seconds): ")
+	token = raw_input("Enter your moodle token: ")
+
 
 
 def loginUserAndGetToken():
-	global token
 	global user_id
-	token = raw_input("Enter your moodle token: ")
 	url = login_user + "&wstoken=" + token
 	data = requests.get(url = url).json()
 	user_id = data["userid"]
 
+def getDatabaseDetails():
+	global dbEmpty
+	c.execute('SELECT name FROM sqlite_master WHERE type="table"')
+	if len(c.fetchall()) == 0:
+		dbEmpty = True
+		print("Database is empty, not sending any notifications...")
+	else:
+		dbEmpty = False
 
 def getUserCourses():
 	global token
@@ -54,6 +65,7 @@ def getUserCourses():
 		getModulesForCourse(course["id"], course["fullname"])
 	# c.close()
 	# conn.close()
+	getDatabaseDetails()
 	print "Finished execution, repeating after " + str(repeat_after) + " seconds..."
 	time.sleep(float(repeat_after))
 	getUserCourses()
@@ -94,7 +106,8 @@ def getModulesForCourse(courseid, coursename):
 					if len(c.fetchall()) == 0:
 						# new module
 						# send notification or whatever
-						sendNotificationForModule(module["name"], coursename)
+						if not dbEmpty:
+							sendNotificationForModule(module["name"], coursename)
 						print "Found New Module " + module["name"] + " in course " + str(coursename)
 						enterModuleInDB(current_module_id, module["name"], courseid)
 				
@@ -112,7 +125,8 @@ def getAnnouncementsForModule(moduleid, courseid, coursename):
 		if len(c.fetchall()) == 0:
 			# new discussion
 			# send notification or whatever
-			sendNotificationForDiscussion(discussion["name"], coursename)
+			if not dbEmpty:
+				sendNotificationForDiscussion(discussion["name"], coursename)
 			print "Found New Discussion " + discussion["name"] + " in course " + str(coursename)
 			enterAnnouncementInDB(discussion["id"], moduleid, discussion["name"], coursename)
 
@@ -131,7 +145,7 @@ def enterAnnouncementInDB(discussionid, moduleid, title, coursename):
 def sendNotificationForModule(modulename, coursename):
 	global device_token
 	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
-	message = "New module " + modulename + " in course " + coursename
+	message = "New Module " + modulename + " in course " + coursename
 	alert = PayloadAlert(title=modulename, body=("New module in " + coursename))
 	payload = Payload(alert=alert)
 	apns.gateway_server.send_notification(device_token, payload)
@@ -139,12 +153,13 @@ def sendNotificationForModule(modulename, coursename):
 def sendNotificationForDiscussion(discussionname, coursename):
 	global device_token
 	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
-	alert = PayloadAlert(title=discussionname, body=("New announcement in " + coursename))
+	alert = PayloadAlert(title=discussionname, body=("New Announcement in " + coursename))
 	payload = Payload(alert=alert)
 	apns.gateway_server.send_notification(device_token, payload)
 
 def main():
-	getDeviceDetails()
+	getInput()
+	getDatabaseDetails()
 	loginUserAndGetToken()
 	getUserCourses()
 
