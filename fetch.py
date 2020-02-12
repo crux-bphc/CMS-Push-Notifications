@@ -1,13 +1,14 @@
 import requests
 import time
 import sqlite3
-from apns import APNs, Frame, Payload
+from apns import APNs, Frame, Payload, PayloadAlert
 
 # urls
 base_url = "https://td.bits-hyderabad.ac.in/moodle/webservice/rest/server.php?"
 login_user = base_url + "wsfunction=core_webservice_get_site_info&moodlewsrestformat=json"
 get_user_courses = base_url + "wsfunction=core_enrol_get_users_courses&moodlewsrestformat=json"
 get_course_modules = base_url + "wsfunction=core_course_get_contents&moodlewsrestformat=json"
+get_discussions = base_url + "wsfunction=mod_forum_get_forum_discussions_paginated&moodlewsrestformat=json&sortby=timemodified&sortdirection=DESC"
 
 # other variables
 token = ""
@@ -44,7 +45,7 @@ def loginUserAndGetToken():
 def getUserCourses():
 	global token
 	global user_id
-	print "Downloading modules..."
+	print "Downloading modules and discussions..."
 	url = get_user_courses + "&wstoken=" + token + "&userid=" + str(user_id)
 	courses = requests.get(url = url).json()
 	for course in courses:
@@ -83,26 +84,64 @@ def getModulesForCourse(courseid, coursename):
 	for section in data:
 		if len(section["modules"]) != 0:
 			for module in section["modules"]:
-				current_module_id = module["id"]
-				# check if module with this id exists
-				c.execute('SELECT * FROM modules WHERE moduleid=(?)',
-					(current_module_id,))
-				if len(c.fetchall()) == 0:
-					# new module
-					# send notification or whatever
-					sendNotification(module["name"], coursename)
-					print "Found New Module " + module["name"] + " in course " + str(coursename)
-					enterModuleInDB(current_module_id, module["name"], courseid)
+				if module["modname"] == "forum":
+					getAnnouncementsForModule(module["instance"], courseid, coursename)
+				else:
+					current_module_id = module["id"]
+					# check if module with this id exists
+					c.execute('SELECT * FROM modules WHERE moduleid=(?)',
+						(current_module_id,))
+					if len(c.fetchall()) == 0:
+						# new module
+						# send notification or whatever
+						sendNotificationForModule(module["name"], coursename)
+						print "Found New Module " + module["name"] + " in course " + str(coursename)
+						enterModuleInDB(current_module_id, module["name"], courseid)
+				
+
+
+def getAnnouncementsForModule(moduleid, courseid, coursename):
+	# make request for announcements
+	global token
+	c.execute('CREATE TABLE IF NOT EXISTS discussions(discussionid INT PRIMARY KEY, moduleid INT, title TEXT, coursename TEXT)')
+	url = get_discussions + "&wstoken=" + token + "&forumid=" + str(moduleid)
+	data = requests.get(url = url).json()
+	for discussion in data["discussions"]:
+		c.execute('SELECT * FROM discussions WHERE discussionid=(?)',
+			(discussion["id"],))
+		if len(c.fetchall()) == 0:
+			# new discussion
+			# send notification or whatever
+			sendNotificationForDiscussion(discussion["name"], coursename)
+			print "Found New Discussion " + discussion["name"] + " in course " + str(coursename)
+			enterAnnouncementInDB(discussion["id"], moduleid, discussion["name"], coursename)
+
+	
 
 
 
-def sendNotification(modulename, coursename):
+def enterAnnouncementInDB(discussionid, moduleid, title, coursename):
+	c.execute('CREATE TABLE IF NOT EXISTS discussions(discussionid INT PRIMARY KEY, moduleid INT, title TEXT, coursename TEXT)')
+	c.execute('INSERT OR IGNORE INTO discussions VALUES(?,?,?,?)',
+		(discussionid, moduleid, title, coursename,))
+
+
+
+
+def sendNotificationForModule(modulename, coursename):
 	global device_token
 	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
 	message = "New module " + modulename + " in course " + coursename
-	payload = Payload(alert=message, sound="default", badge=1)
+	alert = PayloadAlert(title=modulename, body=("New module in " + coursename))
+	payload = Payload(alert=alert)
 	apns.gateway_server.send_notification(device_token, payload)
 
+def sendNotificationForDiscussion(discussionname, coursename):
+	global device_token
+	apns = APNs(use_sandbox=True, cert_file=cert_file, key_file=key_file)
+	alert = PayloadAlert(title=discussionname, body=("New announcement in " + coursename))
+	payload = Payload(alert=alert)
+	apns.gateway_server.send_notification(device_token, payload)
 
 def main():
 	getDeviceDetails()
